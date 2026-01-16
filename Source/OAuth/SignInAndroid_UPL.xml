@@ -12,5 +12,11 @@
                 src="$S(PluginDir)/Private/Android/SignInAndroidHelper.java"
                 dst="$S(BuildDir)/src/com/Plugins/SignInAndroidHelper/SignInAndroidHelper.java"/>
     </prebuildCopies>
+
+    <gameActivityImportAdditions>
+        <insert>
+            import com.Plugins.SignInAndroidHelper.SignInAndroidHelper;
+        </insert>
+    </gameActivityImportAdditions>
     
 </root>
