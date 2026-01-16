@@ -33,7 +33,7 @@ void UOABackendManager::SignInWithGoogle_Internal()
 		return;
 	}
 
-	jmethodID HelloMethod = FJavaWrapper::FindsStaticMethod(
+	jmethodID HelloMethod = FJavaWrapper::FindStaticMethod(
 		Env,
 		HelperClass,
 		"helloFromAndroid",
@@ -60,7 +60,7 @@ void UOABackendManager::SignInWithGoogle_Internal()
 		Result = TEXT("NULL");		
 	}
 	Env->DeleteLocalRef(HelperClass);
-	UE_LOG(LogTemp, Log, TEXT("Java says: %s"), Result);
+	UE_LOG(LogTemp, Log, TEXT("Java says: %s"), *Result);
 #else
 	UE_LOG(LogTemp, Warning, TEXT("Android-only code, nothing to do on this platform"));
 	
