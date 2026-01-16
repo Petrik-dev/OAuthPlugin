@@ -1,4 +1,4 @@
-package com.Plugin.SignInAndroidHelper;
+package com.Plugins.SignInAndroidHelper;
 
 import android.util.Log;
 import androidx.annotation.Keep;
