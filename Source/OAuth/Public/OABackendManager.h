@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
+#include "TimerManager.h"
 #include "OABackendManager.generated.h"
 
 /**
@@ -21,6 +22,12 @@ public:
 
 private:
 
-	void SignInWithGoogle_Internal();
+	void SignInWithGoogle_Internal(const FString& ServerClientId);
+
+	FString GetGoogleSignInJson_Internal();
+	void TickGoogleSignInPolling();
+
+	FTimerHandle GoogleSignInPollTimerHandle;
+	FTimerHandle GoogleSignInTimeotHandle;
 	
 };
