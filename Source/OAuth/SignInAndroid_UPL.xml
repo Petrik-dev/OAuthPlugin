@@ -18,5 +18,28 @@
             import com.Plugins.SignInAndroidHelper.SignInAndroidHelper;
         </insert>
     </gameActivityImportAdditions>
+
+    <gameActivityOnActivityResultAdditions>
+        <insert>
+            SignInAndroidHelper.onActivityResult(this, requestCode, resultCode, data);
+        </insert>
+    </gameActivityOnActivityResultAdditions>
+
+
+    <buildGradleAdditions>
+        <insert>
+            repositories {
+                google()
+                mavenCentral()
+            }
+        </insert>
+
+        <insert>
+            dependencies {
+                implementation 'com.google.android.gms:play-services-auth:21.4.0'
+            }
+        </insert>
+
+    </buildGradleAdditions>
     
 </root>
