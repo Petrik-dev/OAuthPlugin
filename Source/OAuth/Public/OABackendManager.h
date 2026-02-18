@@ -5,12 +5,17 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "TimerManager.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Interfaces/IHttpRequest.h"
 #include "OABackendManager.generated.h"
+
+class UGatewayAPI;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAPIRequestSucceeded, bool, Succeeded, const FString&, Log);
 
 /**
  * 
  */
-UCLASS()
+UCLASS(Blueprintable)
 class OAUTH_API UOABackendManager : public UObject
 {
 	GENERATED_BODY()
@@ -20,14 +25,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "OAuth")
 	void SignInWithGoogle();
 
+	FOnAPIRequestSucceeded OnSignInSucceeded;
+
+protected:
+
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UGatewayAPI> GatewayAPIDataAsset;
+	
 private:
+
+	bool HasErrors(const TSharedPtr<FJsonObject>& JsonObject) const;
 
 	void SignInWithGoogle_Internal(const FString& ServerClientId);
 
 	FString GetGoogleSignInJson_Internal();
 	void TickGoogleSignInPolling();
+	void SendGoogleSignInToBackend(const FString & GoogleResultJson);
+
+	void Cognito_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 
 	FTimerHandle GoogleSignInPollTimerHandle;
 	FTimerHandle GoogleSignInTimeotHandle;
+
+	FString LastGoogleSignInResultJson;
 	
 };
