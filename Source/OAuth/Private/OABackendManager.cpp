@@ -1,18 +1,19 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
 #include "OABackendManager.h"
-
-
-
+#include "GatewayAPI.h"
+#include "HttpModule.h"
+#include "JsonObjectConverter.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"
 #endif
 
+
 #if PLATFORM_ANDROID
 static constexpr const char* JAVA_HELPER_CLASS = "com/Plugins/SignInAndroidHelper/SignInAndroidHelper";
 #endif
+
 
 void UOABackendManager::SignInWithGoogle()
 {
@@ -44,6 +45,44 @@ void UOABackendManager::SignInWithGoogle()
 
 		World->GetTimerManager().SetTimer(GoogleSignInTimeotHandle, TimeoutDelegate, 30.0f, false);
 	}
+}
+
+bool UOABackendManager::HasErrors(const TSharedPtr<FJsonObject>& JsonObject) const
+{
+	if (!JsonObject.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("HasErrors: Invalid Json Object"));
+		return true;
+	}
+
+	auto GetStringOr = [&](const TCHAR* Field, const TCHAR* DefaultValue) -> FString
+	{
+		FString Out;
+		return JsonObject->TryGetStringField(Field, Out) ? Out : FString(DefaultValue);
+	};
+
+	const bool bHasErrorType = JsonObject->HasTypedField<EJson::String>(TEXT("errorType"));
+	const bool bHasErrorMessage = JsonObject->HasTypedField<EJson::String>(TEXT("errorMessage"));
+	const bool bHasFault = JsonObject->HasField(TEXT("$fault"));
+
+	if (bHasErrorType || bHasErrorMessage)
+	{
+		const FString ErrorType = GetStringOr(TEXT("errorType"), TEXT("unknown error"));
+		const FString ErrorMessage = GetStringOr(TEXT("errorMessage"), TEXT("unknown error"));
+
+		UE_LOG(LogTemp, Error, TEXT("Backend error: type='%s', message='%s',"), *ErrorType, *ErrorMessage);
+		return true;
+	}
+
+	if (bHasFault)
+	{
+		const FString ErrorName = GetStringOr(TEXT("name"), TEXT("unknown error"));
+		const FString FaultType = GetStringOr(TEXT("$fault"), TEXT("fault"));
+
+		UE_LOG(LogTemp, Error, TEXT("Backend fault: fault='%s', name='%s'"), *FaultType, *ErrorName);
+		return true;
+	}
+	return false;
 }
 
 void UOABackendManager::SignInWithGoogle_Internal(const FString& ServerClientId)
@@ -147,5 +186,98 @@ void UOABackendManager::TickGoogleSignInPolling()
 		World->GetTimerManager().ClearTimer(GoogleSignInTimeotHandle);
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("Google Sign-in result: %s"), *ResultJson);
+	LastGoogleSignInResultJson = ResultJson;
+
+	TSharedPtr<FJsonObject> GoogleJson;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResultJson);
+	if (!FJsonSerializer::Deserialize(Reader, GoogleJson) || !GoogleJson.IsValid())
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Parse json failed"));
+		return;
+	}
+
+	bool bSuccess = false;
+	if (!GoogleJson->TryGetBoolField(TEXT("success"), bSuccess))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("GoogleSignIn ResultJson: %s"), *ResultJson);
+		OnSignInSucceeded.Broadcast(false, TEXT("Json doesnt have success field"));
+		return;
+	}
+
+	if (!bSuccess)
+	{
+		FString Error;
+		GoogleJson->TryGetStringField(TEXT("error"), Error);
+		OnSignInSucceeded.Broadcast(false, FString::Printf(TEXT("GoogleSignIn failed: %s"), *Error));
+		return;
+	}
+
+	FString IdToken;
+	if (!GoogleJson->TryGetStringField(TEXT("idToken"), IdToken))
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Json doesnt have idtoken field"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Payload = MakeShared<FJsonObject>();
+	Payload->SetStringField(TEXT("idToken"), IdToken);
+
+	FString PayloadString;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadString);
+	FJsonSerializer::Serialize(Payload.ToSharedRef(), Writer);
+
+	SendGoogleSignInToBackend(PayloadString);
+}
+
+void UOABackendManager::SendGoogleSignInToBackend(const FString& GoogleResultJson)
+{
+	check(GatewayAPIDataAsset);
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::Cognito_Response);
+
+	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::GoogleSignIn);
+	Request->SetURL(APIUrl);
+	Request->SetVerb("POST");
+	Request->SetHeader("Content-Type", "application/json");
+
+	Request->SetContentAsString(GoogleResultJson);
+	Request->ProcessRequest();
+}
+
+void UOABackendManager::Cognito_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull)
+{
+	if (!bWasSuccessfull || !Request.IsValid())
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Cognito_Response failed"));
+		return;
+	}
+
+	const FString ResponseString = Response->GetContentAsString();
+	UE_LOG(LogTemp, Log, TEXT("Cognito_Response: %s"), *ResponseString);
+
+	if (ResponseString.Contains(TEXT("Missing Authentication Token")) || ResponseString.Contains(TEXT("\"message\"")))
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("API Gateway error (route/method/stage)"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(ResponseString);
+	if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Cognito response wrong json"));
+		return;
+	}
+	if (HasErrors(JsonObject))
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Cognito response HasErrors"));
+		return;
+	}
+
+	FCognitoAuthenticationResult AuthResult;
+	FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), &AuthResult);
+	AuthResult.ShowResult();
+
+	OnSignInSucceeded.Broadcast(true, TEXT("Cognito authentication successful"));
+
 }
