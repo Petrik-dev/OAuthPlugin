@@ -6,6 +6,12 @@ import{
   AdminInitiateAuthCommand
 } from "@aws-sdk/client-cognito-identity-provider";
 
+import{
+  DynamoDBClient,
+  GetItemCommand,
+  PutItemCommand
+} from "@aws-sdk/client-dynamodb";
+
 async function verifyGoogleIdToken(idToken)
 {
   const url = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
@@ -34,8 +40,10 @@ export const handler = async (event) =>
   const region = process.env.REGION;
   const userPoolId = process.env.USER_POOL_ID;
   const clientId = process.env.CLIENT_ID;
+  const playersTableName = process.env.PLAYERS_TABLE;
 
   const cognito = new CognitoIdentityProviderClient({region});
+  const dynamo = new DynamoDBClient({ region });
 
   try
   {
@@ -99,12 +107,47 @@ export const handler = async (event) =>
       {
         throw new Error("No AuthenticationResult from Cognito");
       }
+
+      let nicknameFromDB = "Player123";
+
+      try
+      {
+        const getPlayerResp = await dynamo.send(new GetItemCommand({
+          TableName: playersTableName,
+          Key: { cognito_username: { S: username } },
+          ConsistentRead: true,
+        }));
+
+        if(getPlayerResp.Item)
+        {
+          if(getPlayerResp.Item.nickname?.S)
+          {
+            nicknameFromDB = getPlayerResp.Item.nickname.S;
+          }
+        }
+        else
+        {
+          await dynamo.send(
+            new PutItemCommand({
+              TableName: playersTableName,
+              Item: {
+                cognito_username: { S: username },
+                nickname: { S: nicknameFromDB },
+              },
+              ConditionExpression: "attribute_not_exists(cognito_username)",
+            }));
+        }
+      } catch
+      {
+        // ignore
+      }
       
       return{
         AccessToken: authResp.AuthenticationResult.AccessToken,
         IdToken: authResp.AuthenticationResult.IdToken,
         RefreshToken: authResp.AuthenticationResult.RefreshToken,
-        ExpiresIn: authResp.AuthenticationResult.ExpiresIn
+        ExpiresIn: authResp.AuthenticationResult.ExpiresIn,
+        Nickname: nicknameFromDB,
       };
   } catch (error)
   {

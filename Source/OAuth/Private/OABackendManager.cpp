@@ -278,6 +278,13 @@ void UOABackendManager::Cognito_Response(FHttpRequestPtr Request, FHttpResponseP
 	FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), &AuthResult);
 	AuthResult.ShowResult();
 
+	FString Nickname;
+	if (JsonObject -> HasField(TEXT("nickname")))
+	{
+		Nickname = JsonObject->GetStringField(TEXT("nickname"));
+	}
+	UE_LOG(LogTemp, Log, TEXT("Nickname: %s"), *Nickname);
+
 	OnSignInSucceeded.Broadcast(true, TEXT("Cognito authentication successful"));
 
 }
