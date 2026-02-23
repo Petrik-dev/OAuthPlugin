@@ -4,6 +4,7 @@
 #include "GatewayAPI.h"
 #include "HttpModule.h"
 #include "JsonObjectConverter.h"
+#include "OAuthLocalPlayerSubsystem.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"
@@ -45,6 +46,18 @@ void UOABackendManager::SignInWithGoogle()
 
 		World->GetTimerManager().SetTimer(GoogleSignInTimeotHandle, TimeoutDelegate, 30.0f, false);
 	}
+}
+
+UOAuthLocalPlayerSubsystem* UOABackendManager::GetOAuthLocalPlayerSubsystem() const
+{
+	if (const APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+	{
+		if (ULocalPlayer* LP = PC->GetLocalPlayer())
+		{
+			return LP->GetSubsystem<UOAuthLocalPlayerSubsystem>();
+		}
+	}
+	return nullptr;
 }
 
 bool UOABackendManager::HasErrors(const TSharedPtr<FJsonObject>& JsonObject) const
@@ -283,7 +296,16 @@ void UOABackendManager::Cognito_Response(FHttpRequestPtr Request, FHttpResponseP
 	{
 		Nickname = JsonObject->GetStringField(TEXT("nickname"));
 	}
-	UE_LOG(LogTemp, Log, TEXT("Nickname: %s"), *Nickname);
+
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem();
+	if (IsValid(LocalPlayerSubsystem))
+	{
+		if (!Nickname.IsEmpty())
+		{
+			LocalPlayerSubsystem->Nickname = Nickname;
+		}
+		LocalPlayerSubsystem->UpdateTokens(AuthResult);
+	}
 
 	OnSignInSucceeded.Broadcast(true, TEXT("Cognito authentication successful"));
 

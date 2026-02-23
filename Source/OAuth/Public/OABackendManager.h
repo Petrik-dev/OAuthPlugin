@@ -9,6 +9,7 @@
 #include "Interfaces/IHttpRequest.h"
 #include "OABackendManager.generated.h"
 
+class UOAuthLocalPlayerSubsystem;
 class UGatewayAPI;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAPIRequestSucceeded, bool, Succeeded, const FString&, Log);
 
@@ -24,6 +25,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "OAuth")
 	void SignInWithGoogle();
+
+	UOAuthLocalPlayerSubsystem* GetOAuthLocalPlayerSubsystem() const;
 
 	FOnAPIRequestSucceeded OnSignInSucceeded;
 
