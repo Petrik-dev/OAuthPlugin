@@ -47,5 +47,6 @@ UENUM(BlueprintType)
 enum class EBackendRequestResources : uint8
 {
 	None,
-	GoogleSignIn
+	GoogleSignIn,
+	SignOut
 };

@@ -26,9 +26,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "OAuth")
 	void SignInWithGoogle();
 
+	void SignOut();
+
 	UOAuthLocalPlayerSubsystem* GetOAuthLocalPlayerSubsystem() const;
 
 	FOnAPIRequestSucceeded OnSignInSucceeded;
+	FOnAPIRequestSucceeded OnSignOutSucceeded;
 
 protected:
 
@@ -38,14 +41,17 @@ protected:
 private:
 
 	bool HasErrors(const TSharedPtr<FJsonObject>& JsonObject) const;
+	FString SerializeJsonData(const TMap<FString, FString>& Params);
 
 	void SignInWithGoogle_Internal(const FString& ServerClientId);
-
+	void SignOut_Internal();
+	
 	FString GetGoogleSignInJson_Internal();
 	void TickGoogleSignInPolling();
 	void SendGoogleSignInToBackend(const FString & GoogleResultJson);
 
 	void Cognito_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
+	void SignOutResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 
 	FTimerHandle GoogleSignInPollTimerHandle;
 	FTimerHandle GoogleSignInTimeotHandle;

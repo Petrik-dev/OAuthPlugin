@@ -21,7 +21,10 @@ void UOAuthWidget::NativeConstruct()
 
 	SignInWithGoogle_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignInWithGoogle);
 
+	PlayerInfoWidget->SignOut_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignOut);
+
 	OAuthBackendManager->OnSignInSucceeded.AddDynamic(this, &UOAuthWidget::SignInSucceeded);
+	OAuthBackendManager->OnSignOutSucceeded.AddDynamic(this, &UOAuthWidget::SignOutSucceeded);
 }
 
 void UOAuthWidget::SignInWithGoogle()
@@ -32,13 +35,7 @@ void UOAuthWidget::SignInWithGoogle()
 
 void UOAuthWidget::SignInSucceeded(bool IsSucceeded, const FString& LogMessage)
 {
-	const FString Msg = FString::Printf(TEXT("SignInSucceeded called. ISucceeded=%s, Message=%s"), IsSucceeded ? TEXT("true") : TEXT("false"), *LogMessage);
-	UE_LOG(LogTemp, Log, TEXT("%s"), *Msg);
-
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 5.f, IsSucceeded ? FColor::Green : FColor::Red, *Msg);
-	}
+	ShowLogMessage(IsSucceeded, LogMessage);
 
 	if (IsSucceeded)
 	{
@@ -49,5 +46,29 @@ void UOAuthWidget::SignInSucceeded(bool IsSucceeded, const FString& LogMessage)
 	else
 	{
 		SignIn_WidgetSwitcher->SetActiveWidget(ButtonsWrapper_SizeBox);
+	}
+}
+
+void UOAuthWidget::SignOut()
+{
+	OAuthBackendManager->SignOut();
+	SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+}
+
+
+void UOAuthWidget::SignOutSucceeded(bool IsSucceded, const FString& LogMessage)
+{
+	ShowLogMessage(IsSucceded, LogMessage);
+	SignIn_WidgetSwitcher->SetActiveWidget(ButtonsWrapper_SizeBox);
+}
+
+void UOAuthWidget::ShowLogMessage(bool IsSucceeded, const FString& LogMessage)
+{
+	const FString Msg = FString::Printf(TEXT("SignInSucceeded called. ISucceeded=%s, Message=%s"), IsSucceeded ? TEXT("true") : TEXT("false"), *LogMessage);
+	UE_LOG(LogTemp, Log, TEXT("%s"), *Msg);
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 5.f, IsSucceeded ? FColor::Green : FColor::Red, *Msg);
 	}
 }
