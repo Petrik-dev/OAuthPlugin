@@ -110,6 +110,13 @@ public class SignInAndroidHelper
 
   }
   
-
+  @Keep
+  public static void signOut(Activity activity)
+  {
+    if(sClient == null || activity == null)
+        return;
+       
+    sClient.signOut();
+  }
 }
 

@@ -10,6 +10,7 @@
  * 
  */
 class UTextBlock;
+class UButton;
 UCLASS()
 class OAUTH_API UPlayerInfoWidget : public UUserWidget
 {
@@ -19,6 +20,9 @@ class OAUTH_API UPlayerInfoWidget : public UUserWidget
 public:
 
 	void UpdatePlayerNickname(const FString& InPlayerNickname);
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> SignOut_Button;
 	
 private:
 

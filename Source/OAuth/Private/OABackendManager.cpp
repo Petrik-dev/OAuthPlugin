@@ -310,3 +310,100 @@ void UOABackendManager::Cognito_Response(FHttpRequestPtr Request, FHttpResponseP
 	OnSignInSucceeded.Broadcast(true, TEXT("Cognito authentication successful"));
 
 }
+
+FString UOABackendManager::SerializeJsonData(const TMap<FString, FString>& Params)
+{
+	TSharedPtr<FJsonObject> JsonObjectData = MakeShareable(new FJsonObject());
+	for (const auto& Param : Params)
+	{
+		JsonObjectData->SetStringField(Param.Key, Param.Value);
+	}
+	FString Data;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Data);
+	FJsonSerializer::Serialize(JsonObjectData.ToSharedRef(), Writer);
+	return Data;
+}
+
+void UOABackendManager::SignOut_Internal()
+{
+#if PLATFORM_ANDROID
+
+	JNIEnv* Env = FAndroidApplication::GetJavaEnv();
+	if (!Env)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SignOut_Internal: Env is null"));
+		return;
+	}
+
+	jclass HelperClass = FAndroidApplication::FindJavaClass(JAVA_HELPER_CLASS);
+	if (!HelperClass)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SignOut_Internal: HelperClass is null"));
+		return;
+	}
+
+	jmethodID SignOutMethod = FJavaWrapper::FindStaticMethod(Env, HelperClass, "signOut", "(Landroid/app/Activity;)V", false);
+	if (!SignOutMethod)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SignOut_Internal: signout method not found"));
+		Env->DeleteLocalRef(HelperClass);
+		return;
+	}
+
+	jobject Activity = FAndroidApplication::GetGameActivityThis();
+	if (!Activity)
+	{
+		UE_LOG(LogTemp, Error, TEXT("SignOut_Internal: Activity is null"));
+		Env->DeleteLocalRef(HelperClass);
+		return;
+	}
+
+	Env->CallStaticVoidMethod(HelperClass, SignOutMethod, Activity);
+	Env->DeleteLocalRef(HelperClass);
+	
+#endif
+}
+
+void UOABackendManager::SignOut()
+{
+	check(GatewayAPIDataAsset);
+	SignOut_Internal();
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::SignOutResponse);
+	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::SignOut);
+	Request->SetURL(APIUrl);
+	Request->SetVerb("POST");
+	Request->SetHeader("Content-Type", "application/json");
+
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+
+	TMap<FString, FString> Params = {{ TEXT("accessToken"), LocalPlayerSubsystem->AuthenticationResult.AccessToken }};
+	const FString Content = SerializeJsonData(Params);
+	Request->SetContentAsString(Content);
+	Request->ProcessRequest();
+}
+
+void UOABackendManager::SignOutResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull)
+{
+	if (!bWasSuccessfull || !Response.IsValid())
+	{
+		OnSignOutSucceeded.Broadcast(false, TEXT("SognOut_Response: !bWasSuccessfull || !Response.IsValid()"));
+		return;
+	}
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+	if (FJsonSerializer::Deserialize(JsonReader, JsonObject) && JsonObject.IsValid())
+	{
+		if (HasErrors(JsonObject))
+		{
+			OnSignOutSucceeded.Broadcast(false, TEXT("SognOut_Response: HasErrors"));
+			return;
+		}
+	}
+	if (UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem(); IsValid(LocalPlayerSubsystem))
+	{
+		LocalPlayerSubsystem->ClearTokens();
+	}
+	OnSignOutSucceeded.Broadcast(true, TEXT("Successfully Signed Out"));
+}

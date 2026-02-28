@@ -36,7 +36,15 @@ private:
 	void SignInWithGoogle();
 
 	UFUNCTION()
+	void SignOut();
+
+	UFUNCTION()
 	void SignInSucceeded(bool IsSucceeded, const FString& LogMessage);
+	UFUNCTION()
+	void SignOutSucceeded(bool IsSucceded, const FString& LogMessage);
+
+
+	void ShowLogMessage(bool IsSucceeded, const FString& LogMessage);
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCircularThrobber> LoadingScreen_CircularThrobber;
