@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "BackendRequestTypes.h"
 #include "OAuthWidget.generated.h"
 
+class UOAuthPopup;
 class UPlayerInfoWidget;
 class UOABackendManager;
 class UButton;
@@ -37,11 +39,20 @@ private:
 
 	UFUNCTION()
 	void SignOut();
+	UFUNCTION()
+	void ChangePlayerNickname();
 
 	UFUNCTION()
 	void SignInSucceeded(bool IsSucceeded, const FString& LogMessage);
 	UFUNCTION()
 	void SignOutSucceeded(bool IsSucceded, const FString& LogMessage);
+	UFUNCTION()
+	void ChangePlayerNicknameSucceeded(bool IsSucceded, const FString& LogMessage);
+
+	UFUNCTION()
+	void PopupOkClicked();
+	UFUNCTION()
+	void PopupCancelClicked();
 
 
 	void ShowLogMessage(bool IsSucceeded, const FString& LogMessage);
@@ -57,6 +68,11 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<USizeBox> ButtonsWrapper_SizeBox;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UOAuthPopup> PopupWidget;
+	
+	EBackendRequestResources CurrentPopupType = EBackendRequestResources::None;
 
 	UPROPERTY()
 	UOABackendManager* OAuthBackendManager;
