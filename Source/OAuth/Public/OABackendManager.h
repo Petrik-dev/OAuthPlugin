@@ -27,11 +27,13 @@ public:
 	void SignInWithGoogle();
 
 	void SignOut();
+	void ChangePlayerNickname(const FString& InNickname);
 
 	UOAuthLocalPlayerSubsystem* GetOAuthLocalPlayerSubsystem() const;
 
 	FOnAPIRequestSucceeded OnSignInSucceeded;
 	FOnAPIRequestSucceeded OnSignOutSucceeded;
+	FOnAPIRequestSucceeded OnChangePlayerNicknameSucceeded;
 
 protected:
 
@@ -51,7 +53,8 @@ private:
 	void SendGoogleSignInToBackend(const FString & GoogleResultJson);
 
 	void Cognito_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
-	void SignOutResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
+	void SignOut_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
+	void ChangePlayerNickname_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 
 	FTimerHandle GoogleSignInPollTimerHandle;
 	FTimerHandle GoogleSignInTimeotHandle;

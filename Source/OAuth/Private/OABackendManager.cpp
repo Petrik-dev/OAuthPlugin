@@ -369,7 +369,7 @@ void UOABackendManager::SignOut()
 	check(GatewayAPIDataAsset);
 	SignOut_Internal();
 	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
-	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::SignOutResponse);
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::SignOut_Response);
 	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::SignOut);
 	Request->SetURL(APIUrl);
 	Request->SetVerb("POST");
@@ -384,7 +384,7 @@ void UOABackendManager::SignOut()
 	Request->ProcessRequest();
 }
 
-void UOABackendManager::SignOutResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull)
+void UOABackendManager::SignOut_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull)
 {
 	if (!bWasSuccessfull || !Response.IsValid())
 	{
@@ -406,4 +406,84 @@ void UOABackendManager::SignOutResponse(FHttpRequestPtr Request, FHttpResponsePt
 		LocalPlayerSubsystem->ClearTokens();
 	}
 	OnSignOutSucceeded.Broadcast(true, TEXT("Successfully Signed Out"));
+}
+
+void UOABackendManager::ChangePlayerNickname(const FString& InNickname)
+{
+	check(GatewayAPIDataAsset);
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+
+	const FString AccessToken = LocalPlayerSubsystem->AuthenticationResult.AccessToken;
+	if (AccessToken.IsEmpty())
+	{
+		OnChangePlayerNicknameSucceeded.Broadcast(false, TEXT("ChangePlayerNickname: access token is empty"));
+		return;
+	}
+
+	if (InNickname.IsEmpty() || InNickname.Len() > 10)
+	{
+		OnChangePlayerNicknameSucceeded.Broadcast(false, TEXT("ChangePlayerNickname: invalid nickname"));
+		return;
+	}
+
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::ChangePlayerNickname_Response);
+
+	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::ChangePlayerNickname);
+	Request->SetURL(APIUrl);
+	Request->SetVerb(TEXT("POST"));
+	Request->SetHeader("Content-Type", "application/json");
+
+	TMap<FString, FString> Params = {
+		{ TEXT("accessToken"), AccessToken },
+		{ TEXT("newNickname"), InNickname }
+	};
+
+	const FString Content = SerializeJsonData(Params);
+	Request->SetContentAsString(Content);
+	Request->ProcessRequest();
+}
+
+void UOABackendManager::ChangePlayerNickname_Response(FHttpRequestPtr Request, FHttpResponsePtr Response,
+	bool bWasSuccessfull)
+{
+	if (!bWasSuccessfull || !Response.IsValid())
+	{
+		OnChangePlayerNicknameSucceeded.Broadcast(false, TEXT("ChangePlayerNickname_Response: !bWasSuccessfull || !Response.IsValid()"));
+		return;
+	}
+
+	const FString ResponseString = Response->GetContentAsString();
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(ResponseString);
+
+	if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
+	{
+		OnChangePlayerNicknameSucceeded.Broadcast(false, TEXT("ChangePlayerNickname_Response: failed to parse json"));
+		return;
+	}
+
+	if (HasErrors(JsonObject))
+	{
+		OnChangePlayerNicknameSucceeded.Broadcast(false, TEXT("ChangePlayerNickname_Response: HasErrors"));
+		return;
+	}
+
+	FString UpdateNickname;
+	if(JsonObject->HasField(TEXT("nickname")))
+	{
+		UpdateNickname = JsonObject->GetStringField(TEXT("nickname"));
+	}
+
+	if (!UpdateNickname.IsEmpty())
+	{
+		if (UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem(); IsValid(LocalPlayerSubsystem))
+		{
+			LocalPlayerSubsystem->SaveNickname(UpdateNickname);
+		}
+	}
+
+	OnChangePlayerNicknameSucceeded.Broadcast(true, TEXT("ChangePlayerNickname_Response: SUCCESS"));
+	
 }

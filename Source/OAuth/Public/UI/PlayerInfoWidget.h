@@ -23,6 +23,9 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> SignOut_Button;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> ChangePlayerNickname_Button;
 	
 private:
 

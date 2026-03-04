@@ -9,6 +9,7 @@
 #include "Components/CircularThrobber.h"
 #include "Components/SizeBox.h"
 #include "Components/WidgetSwitcher.h"
+#include "UI/OAuthPopup.h"
 #include "UI/PlayerInfoWidget.h"
 
 void UOAuthWidget::NativeConstruct()
@@ -22,9 +23,14 @@ void UOAuthWidget::NativeConstruct()
 	SignInWithGoogle_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignInWithGoogle);
 
 	PlayerInfoWidget->SignOut_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignOut);
+	PlayerInfoWidget->ChangePlayerNickname_Button->OnClicked.AddDynamic(this, &UOAuthWidget::ChangePlayerNickname);
+
+	PopupWidget->Ok_Button->OnClicked.AddDynamic(this, &UOAuthWidget::PopupOkClicked);
+	PopupWidget->Cancel_Button->OnClicked.AddDynamic(this, &UOAuthWidget::PopupCancelClicked);
 
 	OAuthBackendManager->OnSignInSucceeded.AddDynamic(this, &UOAuthWidget::SignInSucceeded);
 	OAuthBackendManager->OnSignOutSucceeded.AddDynamic(this, &UOAuthWidget::SignOutSucceeded);
+	OAuthBackendManager->OnChangePlayerNicknameSucceeded.AddDynamic(this, &UOAuthWidget::ChangePlayerNicknameSucceeded);
 }
 
 void UOAuthWidget::SignInWithGoogle()
@@ -51,10 +57,10 @@ void UOAuthWidget::SignInSucceeded(bool IsSucceeded, const FString& LogMessage)
 
 void UOAuthWidget::SignOut()
 {
-	OAuthBackendManager->SignOut();
-	SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+	CurrentPopupType = EBackendRequestResources::SignOut;
+	SignIn_WidgetSwitcher->SetActiveWidget(PopupWidget);
+	PopupWidget->UpdateStateOfPopup(CurrentPopupType);
 }
-
 
 void UOAuthWidget::SignOutSucceeded(bool IsSucceded, const FString& LogMessage)
 {
@@ -71,4 +77,67 @@ void UOAuthWidget::ShowLogMessage(bool IsSucceeded, const FString& LogMessage)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 5.f, IsSucceeded ? FColor::Green : FColor::Red, *Msg);
 	}
+}
+
+void UOAuthWidget::ChangePlayerNickname()
+{
+	CurrentPopupType = EBackendRequestResources::ChangePlayerNickname;
+	SignIn_WidgetSwitcher->SetActiveWidget(PopupWidget);
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = OAuthBackendManager->GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+		
+	PopupWidget->UpdateStateOfPopup(CurrentPopupType, LocalPlayerSubsystem->Nickname);
+}
+
+void UOAuthWidget::ChangePlayerNicknameSucceeded(bool IsSucceded, const FString& LogMessage)
+{
+	ShowLogMessage(IsSucceded, LogMessage);
+
+	PlayerInfoWidget->UpdatePlayerNickname(PopupWidget->NewNickname);
+	SignIn_WidgetSwitcher->SetActiveWidget(PlayerInfoWidget);
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = OAuthBackendManager->GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+
+	LocalPlayerSubsystem->Nickname = PopupWidget->NewNickname;
+}
+
+void UOAuthWidget::PopupOkClicked()
+{
+	switch (CurrentPopupType)
+	{
+		case EBackendRequestResources::ChangePlayerNickname:
+			{
+				UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = OAuthBackendManager->GetOAuthLocalPlayerSubsystem();
+				if (!IsValid(LocalPlayerSubsystem)) return;
+
+				const FString CurrentNickname = LocalPlayerSubsystem->Nickname;
+				const FString NewNickname = PopupWidget->NewNickname;
+
+				if (NewNickname.IsEmpty() || NewNickname.Len() > 10) return;
+				if (NewNickname == CurrentNickname)
+				{
+					PopupCancelClicked();
+					return;
+				}
+				SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+				OAuthBackendManager->ChangePlayerNickname(NewNickname);
+			}
+			break;
+
+	case EBackendRequestResources::SignOut:
+		{
+			SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+			OAuthBackendManager->SignOut();
+		}
+		break;
+
+	default:
+		break;
+	}
+	
+}
+
+void UOAuthWidget::PopupCancelClicked()
+{
+	SignIn_WidgetSwitcher->SetActiveWidget(PlayerInfoWidget);
 }
