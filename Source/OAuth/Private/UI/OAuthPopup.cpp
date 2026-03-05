@@ -22,23 +22,28 @@ void UOAuthPopup::UpdateStateOfPopup(EBackendRequestResources TypeOfPopup, const
 
 	switch (TypeOfPopup)
 	{
-		case EBackendRequestResources::ChangePlayerNickname:
-			{
-				NewNickname = InNickname;
-				FString InfoText = FString::Printf(TEXT("Right now your nickname is: %s%s"), LINE_TERMINATOR, *InNickname);
-				PopupMessage_TextBlock->SetText(FText::FromString(InfoText));
-				Nickname_EditableText->SetText(FText::FromString(NewNickname));
-			}
-			break;
+	case EBackendRequestResources::ChangePlayerNickname:
+		{
+			NewNickname = InNickname;
+			FString InfoText = FString::Printf(TEXT("Right now your nickname is: %s%s"), LINE_TERMINATOR, *InNickname);
+			PopupMessage_TextBlock->SetText(FText::FromString(InfoText));
+			Nickname_EditableText->SetText(FText::FromString(NewNickname));
+		}
+		break;
 
-		case EBackendRequestResources::SignOut:
-			{
-				PopupMessage_TextBlock->SetText(FText::FromString(TEXT("Are you sure you want to sign out?")));	
-			}
-			break;
+	case EBackendRequestResources::SignOut:
+		{
+			PopupMessage_TextBlock->SetText(FText::FromString(TEXT("Are you sure you want to sign out?")));	
+		}
+		break;
 
-		default:
-			break;
+	case EBackendRequestResources::DeleteAccount:
+		{
+			PopupMessage_TextBlock->SetText(FText::FromString(TEXT("Are you sure you want to delete the account?")));
+		}
+
+	default:
+		break;
 	}
 }
 

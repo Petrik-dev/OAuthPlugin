@@ -28,12 +28,14 @@ public:
 
 	void SignOut();
 	void ChangePlayerNickname(const FString& InNickname);
+	void DeleteAccount();
 
 	UOAuthLocalPlayerSubsystem* GetOAuthLocalPlayerSubsystem() const;
 
 	FOnAPIRequestSucceeded OnSignInSucceeded;
 	FOnAPIRequestSucceeded OnSignOutSucceeded;
 	FOnAPIRequestSucceeded OnChangePlayerNicknameSucceeded;
+	FOnAPIRequestSucceeded OnDeleteAccountSucceeded;
 
 protected:
 
@@ -55,6 +57,7 @@ private:
 	void Cognito_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 	void SignOut_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 	void ChangePlayerNickname_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
+	void DeleteAccount_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 
 	FTimerHandle GoogleSignInPollTimerHandle;
 	FTimerHandle GoogleSignInTimeotHandle;
