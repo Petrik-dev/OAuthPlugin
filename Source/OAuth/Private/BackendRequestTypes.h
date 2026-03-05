@@ -49,5 +49,6 @@ enum class EBackendRequestResources : uint8
 	None,
 	GoogleSignIn,
 	SignOut,
-	ChangePlayerNickname
+	ChangePlayerNickname,
+	DeleteAccount
 };

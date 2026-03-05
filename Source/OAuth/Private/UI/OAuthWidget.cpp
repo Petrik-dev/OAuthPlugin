@@ -1,6 +1,4 @@
 // Fill out your copyright notice in the Description page of Project Settings.
-
-
 #include "UI/OAuthWidget.h"
 
 #include "OABackendManager.h"
@@ -24,6 +22,7 @@ void UOAuthWidget::NativeConstruct()
 
 	PlayerInfoWidget->SignOut_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignOut);
 	PlayerInfoWidget->ChangePlayerNickname_Button->OnClicked.AddDynamic(this, &UOAuthWidget::ChangePlayerNickname);
+	PlayerInfoWidget->DeleteAccount_Button->OnClicked.AddDynamic(this, &UOAuthWidget::DeleteAccount);
 
 	PopupWidget->Ok_Button->OnClicked.AddDynamic(this, &UOAuthWidget::PopupOkClicked);
 	PopupWidget->Cancel_Button->OnClicked.AddDynamic(this, &UOAuthWidget::PopupCancelClicked);
@@ -31,6 +30,7 @@ void UOAuthWidget::NativeConstruct()
 	OAuthBackendManager->OnSignInSucceeded.AddDynamic(this, &UOAuthWidget::SignInSucceeded);
 	OAuthBackendManager->OnSignOutSucceeded.AddDynamic(this, &UOAuthWidget::SignOutSucceeded);
 	OAuthBackendManager->OnChangePlayerNicknameSucceeded.AddDynamic(this, &UOAuthWidget::ChangePlayerNicknameSucceeded);
+	OAuthBackendManager->OnDeleteAccountSucceeded.AddDynamic(this, &UOAuthWidget::DeleteAccountSucceeded);
 }
 
 void UOAuthWidget::SignInWithGoogle()
@@ -131,6 +131,13 @@ void UOAuthWidget::PopupOkClicked()
 		}
 		break;
 
+	case EBackendRequestResources::DeleteAccount:
+		{
+			SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+			OAuthBackendManager->DeleteAccount();
+		}
+		break;
+		
 	default:
 		break;
 	}
@@ -140,4 +147,26 @@ void UOAuthWidget::PopupOkClicked()
 void UOAuthWidget::PopupCancelClicked()
 {
 	SignIn_WidgetSwitcher->SetActiveWidget(PlayerInfoWidget);
+}
+
+void UOAuthWidget::DeleteAccount()
+{
+	CurrentPopupType = EBackendRequestResources::DeleteAccount;
+	SignIn_WidgetSwitcher->SetActiveWidget(PopupWidget);
+
+	PopupWidget->UpdateStateOfPopup(CurrentPopupType);
+}
+
+void UOAuthWidget::DeleteAccountSucceeded(bool IsSucceded, const FString& LogMessage)
+{
+	ShowLogMessage(IsSucceded, LogMessage);
+
+	if (IsSucceded)
+	{
+		SignIn_WidgetSwitcher->SetActiveWidget(ButtonsWrapper_SizeBox);
+	}
+	else
+	{
+		SignIn_WidgetSwitcher->SetActiveWidget(PlayerInfoWidget);
+	}
 }

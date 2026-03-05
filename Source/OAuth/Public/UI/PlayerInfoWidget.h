@@ -26,6 +26,9 @@ public:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> ChangePlayerNickname_Button;
+
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> DeleteAccount_Button;
 	
 private:
 

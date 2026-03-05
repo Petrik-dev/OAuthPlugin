@@ -41,6 +41,8 @@ private:
 	void SignOut();
 	UFUNCTION()
 	void ChangePlayerNickname();
+	UFUNCTION()
+	void DeleteAccount();
 
 	UFUNCTION()
 	void SignInSucceeded(bool IsSucceeded, const FString& LogMessage);
@@ -48,6 +50,8 @@ private:
 	void SignOutSucceeded(bool IsSucceded, const FString& LogMessage);
 	UFUNCTION()
 	void ChangePlayerNicknameSucceeded(bool IsSucceded, const FString& LogMessage);
+	UFUNCTION()
+	void DeleteAccountSucceeded(bool IsSucceded, const FString& LogMessage);
 
 	UFUNCTION()
 	void PopupOkClicked();

@@ -5,6 +5,7 @@
 #include "HttpModule.h"
 #include "JsonObjectConverter.h"
 #include "OAuthLocalPlayerSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"
@@ -446,7 +447,7 @@ void UOABackendManager::ChangePlayerNickname(const FString& InNickname)
 }
 
 void UOABackendManager::ChangePlayerNickname_Response(FHttpRequestPtr Request, FHttpResponsePtr Response,
-	bool bWasSuccessfull)
+                                                      bool bWasSuccessfull)
 {
 	if (!bWasSuccessfull || !Response.IsValid())
 	{
@@ -486,4 +487,57 @@ void UOABackendManager::ChangePlayerNickname_Response(FHttpRequestPtr Request, F
 
 	OnChangePlayerNicknameSucceeded.Broadcast(true, TEXT("ChangePlayerNickname_Response: SUCCESS"));
 	
+}
+
+void UOABackendManager::DeleteAccount()
+{
+	check(GatewayAPIDataAsset);
+	SignOut_Internal();
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::DeleteAccount_Response);
+	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::DeleteAccount);
+	Request->SetURL(APIUrl);
+	Request->SetVerb("POST");
+	Request->SetHeader("Content-Type", "application/json");
+
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+
+	TMap<FString, FString> Params = {{ TEXT("accessToken"), LocalPlayerSubsystem->AuthenticationResult.AccessToken }};
+	const FString Content = SerializeJsonData(Params);
+	Request->SetContentAsString(Content);
+	Request->ProcessRequest();
+}
+
+void UOABackendManager::DeleteAccount_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull)
+{
+	if (!bWasSuccessfull || !Response.IsValid())
+	{
+		OnDeleteAccountSucceeded.Broadcast(false, TEXT("DeleteAccount_Response: !bWasSuccessfull || !Response.IsValid()"));
+		return;
+	}
+	const FString ResponseString = Response->GetContentAsString();
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(ResponseString);
+	if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
+	{
+		OnDeleteAccountSucceeded.Broadcast(false, TEXT("DeleteAccount_Response: failed to parse json"));
+		return;
+	}
+	if (HasErrors(JsonObject))
+	{
+		OnDeleteAccountSucceeded.Broadcast(false, TEXT("DeleteAccount_Response: backend returned error"));
+		return;
+	}
+
+	if (UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem(); IsValid(LocalPlayerSubsystem))
+	{
+		LocalPlayerSubsystem->ClearTokens();
+	}
+
+	if (UGameplayStatics::DoesSaveGameExist(TEXT("Creds"), 0))
+	{
+		UGameplayStatics::DeleteGameInSlot(TEXT("Creds"), 0);
+	}
+	OnDeleteAccountSucceeded.Broadcast(true, TEXT("DeleteAccount_Response: SUCCESS LOGOUT -> clearing local state"));
 }
