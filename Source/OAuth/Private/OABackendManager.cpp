@@ -551,3 +551,75 @@ void UOABackendManager::DeleteAccount_Response(FHttpRequestPtr Request, FHttpRes
 	}
 	OnDeleteAccountSucceeded.Broadcast(true, TEXT("DeleteAccount_Response: SUCCESS LOGOUT -> clearing local state"));
 }
+
+bool UOABackendManager::AutoSignIn()
+{
+	if (UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem(); IsValid(LocalPlayerSubsystem))
+	{
+		if (LocalPlayerSubsystem->RestoreAuthResultFromSaveGame())
+		{
+			RefreshToken(LocalPlayerSubsystem->AuthenticationResult.RefreshToken);
+			return true;
+		}
+	}
+	return false;
+}
+
+void UOABackendManager::RefreshToken(const FString& InRefreshToken)
+{
+	check(GatewayAPIDataAsset);
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::RefreshToken_Response);
+	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::RefreshToken);
+	Request->SetURL(APIUrl);
+	Request->SetVerb("POST");
+	Request->SetHeader("Content-Type", "application/json");
+
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+
+	TMap<FString, FString> Params = {{ TEXT("refreshToken"), LocalPlayerSubsystem->AuthenticationResult.RefreshToken }};
+	const FString Content = SerializeJsonData(Params);
+	Request->SetContentAsString(Content);
+	Request->ProcessRequest();
+}
+
+void UOABackendManager::RefreshToken_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull)
+{
+	if (!bWasSuccessfull || !Response.IsValid())
+	{
+		OnDeleteAccountSucceeded.Broadcast(false, TEXT("RefreshToken_Response: !bWasSuccessfull || !Response.IsValid()"));
+		return;
+	}
+	const FString ResponseString = Response->GetContentAsString();
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> JsonReader = TJsonReaderFactory<>::Create(ResponseString);
+	if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
+	{
+		OnDeleteAccountSucceeded.Broadcast(false, TEXT("RefreshToken_Response: failed to parse json"));
+		return;
+	}
+	if (HasErrors(JsonObject))
+	{
+		OnDeleteAccountSucceeded.Broadcast(false, TEXT("RefreshToken_Response: backend returned error"));
+		return;
+	}
+
+	UOAuthLocalPlayerSubsystem* LocalPlayerSubsystem = GetOAuthLocalPlayerSubsystem();
+	if (!IsValid(LocalPlayerSubsystem)) return;
+
+	bool bForceLogout = false;
+	if (JsonObject->TryGetBoolField(TEXT("forceLogout"), bForceLogout) && bForceLogout)
+	{
+		LocalPlayerSubsystem->ClearTokens();
+		OnSignOutSucceeded.Broadcast(true, TEXT("RefreshToken_Response: force signOut"));
+		return;
+	}
+
+	FCognitoAuthenticationResult AuthenticationResult;
+	FJsonObjectConverter::JsonObjectToUStruct(JsonObject.ToSharedRef(), &AuthenticationResult);
+	LocalPlayerSubsystem->UpdateTokens(AuthenticationResult);
+	
+
+	OnSignInSucceeded.Broadcast(true, TEXT("RefreshToken_Response: success"));
+}

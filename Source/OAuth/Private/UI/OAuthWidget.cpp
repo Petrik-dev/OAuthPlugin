@@ -31,6 +31,11 @@ void UOAuthWidget::NativeConstruct()
 	OAuthBackendManager->OnSignOutSucceeded.AddDynamic(this, &UOAuthWidget::SignOutSucceeded);
 	OAuthBackendManager->OnChangePlayerNicknameSucceeded.AddDynamic(this, &UOAuthWidget::ChangePlayerNicknameSucceeded);
 	OAuthBackendManager->OnDeleteAccountSucceeded.AddDynamic(this, &UOAuthWidget::DeleteAccountSucceeded);
+
+	if (OAuthBackendManager->AutoSignIn())
+	{
+		SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+	}
 }
 
 void UOAuthWidget::SignInWithGoogle()

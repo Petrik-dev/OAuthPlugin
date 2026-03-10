@@ -21,6 +21,8 @@ public:
 	void ClearTokens();
 	void SaveNickname(const FString& InNickname);
 
+	bool RestoreAuthResultFromSaveGame();
+
 	FString Nickname;
 	FCognitoAuthenticationResult AuthenticationResult;
 

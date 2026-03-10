@@ -72,3 +72,22 @@ void UOAuthLocalPlayerSubsystem::SaveTokenToSaveGame()
 	}
 	
 }
+
+bool UOAuthLocalPlayerSubsystem::RestoreAuthResultFromSaveGame()
+{
+	if (!UGameplayStatics::DoesSaveGameExist(TEXT("Creds"), 0))
+	{
+		return false;
+	}
+
+	if (UCreds* Creds = Cast<UCreds>(UGameplayStatics::LoadGameFromSlot(TEXT("Creds"), 0)))
+	{
+		if (!Creds->AuthenticationResult.RefreshToken.IsEmpty())
+		{
+			AuthenticationResult = Creds->AuthenticationResult;
+			Nickname = Creds->Nickname;
+			return true;
+		}
+	}
+	return false;
+}

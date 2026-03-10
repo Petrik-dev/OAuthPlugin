@@ -23,12 +23,15 @@ class OAUTH_API UOABackendManager : public UObject
 
 public:
 
+	bool AutoSignIn();
+
 	UFUNCTION(BlueprintCallable, Category = "OAuth")
 	void SignInWithGoogle();
 
 	void SignOut();
 	void ChangePlayerNickname(const FString& InNickname);
 	void DeleteAccount();
+	void RefreshToken(const FString& InRefreshToken);
 
 	UOAuthLocalPlayerSubsystem* GetOAuthLocalPlayerSubsystem() const;
 
@@ -58,6 +61,7 @@ private:
 	void SignOut_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 	void ChangePlayerNickname_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 	void DeleteAccount_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
+	void RefreshToken_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 
 	FTimerHandle GoogleSignInPollTimerHandle;
 	FTimerHandle GoogleSignInTimeotHandle;
