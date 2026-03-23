@@ -6,6 +6,9 @@
 #include "JsonObjectConverter.h"
 #include "OAuthLocalPlayerSubsystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Engine/World.h"
+#include "Engine/LocalPlayer.h"
+
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJNI.h"

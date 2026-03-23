@@ -9,6 +9,7 @@
 #include "Components/WidgetSwitcher.h"
 #include "UI/OAuthPopup.h"
 #include "UI/PlayerInfoWidget.h"
+#include "Engine/Engine.h"
 
 void UOAuthWidget::NativeConstruct()
 {
