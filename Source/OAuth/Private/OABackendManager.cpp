@@ -8,6 +8,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
+#include "iOS/GoogleSignInIOSHelper.h"
 
 #if PLATFORM_ANDROID
 #include "Android/AndroidApplication.h"
@@ -19,10 +20,22 @@
 static constexpr const char* JAVA_HELPER_CLASS = "com/Plugins/SignInAndroidHelper/SignInAndroidHelper";
 #endif
 
+#if PLATFORM_IOS
+#include "iOS/GoogleSignInIOSHelper.h"
+#endif
+
+
 
 void UOABackendManager::SignInWithGoogle()
 {
-	SignInWithGoogle_Internal("Here has to be your google client id");
+	FString ClientID;
+#if PLATFORM_ANDROID
+	ClientID = GatewayAPIDataAsset->GetGoogleClientIdAndroid();
+#elif PLATFORM_IOS
+	ClientID = GatewayAPIDataAsset->GetGoogleClientIdIOS();
+#endif
+	
+	SignInWithGoogle_Internal(ClientID);
 
 	if (UWorld* World = GetWorld())
 	{
@@ -160,6 +173,12 @@ void UOABackendManager::SignInWithGoogle_Internal(const FString& ServerClientId)
 
 	Env->DeleteLocalRef(JClientId);
 	Env->DeleteLocalRef(HelperClass);
+#elif PLATFORM_IOS
+	NSString* ClientID = [NSString stringWithUTF8String:TCHAR_TO_UTF8(*ServerClientId)];
+	if (ClientID)
+	{
+		[GoogleSignInIOSHelper startSignInWithClientId:ClientID];
+	}
 #else
 	UE_LOG(LogTemp, Warning, TEXT("Android-only code, nothing to do on this platform"));
 	
@@ -198,6 +217,17 @@ FString UOABackendManager::GetGoogleSignInJson_Internal()
 		Env->DeleteLocalRef(HelperClass);
 	}
 	return Result;
+#elif PLATFORM_IOS
+	if (!GoogleSignInHasResult())
+	{
+		return FString();
+	}
+	const char* JsonUtf8 = GoogleSignInConsumeLastResultJsonUTF8();
+	if (!JsonUtf8 || JsonUtf8[0] == '\0')
+	{
+		return FString();
+	}
+	return UTF8_TO_TCHAR(JsonUtf8);
 #endif
 	return FString();
 }

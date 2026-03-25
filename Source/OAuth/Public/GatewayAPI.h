@@ -18,9 +18,17 @@ class OAUTH_API UGatewayAPI : public UDataAsset
 public:
 
 	FString GetInvokeURL(EBackendRequestResources RequestResources) const;
+	FString GetGoogleClientIdAndroid() const { return GoogleClientIdAndroid ;};
+	FString GetGoogleClientIdIOS() const { return GoogleClientIdIOS; };
 	
 protected:
 
+	UPROPERTY(EditDefaultsOnly)
+	FString GoogleClientIdAndroid;
+
+	UPROPERTY(EditDefaultsOnly)
+	FString GoogleClientIdIOS;
+	
 	UPROPERTY(EditDefaultsOnly)
 	FString InvokeURL;
 

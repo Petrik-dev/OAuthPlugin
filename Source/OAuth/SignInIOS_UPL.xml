@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<root>
+
+    <init>
+        <log text="GoogleSignIn iOS -> Applying info.plist updates"/>
+        <trace enable="false"/>
+    </init>
+
+    <iosPlistUpdates>
+        <addElements tag="dict" once="true">
+            <Key>CFBundleURLTypes</Key>
+            <array>
+                <dict>
+                    <key>CFBundleURLSchemes</key>
+                    <array>
+                        <string>Here has to be iOS URL scheme from Google cloude console</string>
+                    </array>
+                </dict>
+            </array>
+        </addElements>
+    </iosPlistUpdates>
+
+</root>

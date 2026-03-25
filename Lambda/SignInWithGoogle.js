@@ -25,13 +25,21 @@ async function verifyGoogleIdToken(idToken)
 
   const data = await res.json();
 
-  if(process.env.GOOGLE_CLIENT_ID)
+  if(!data.aud)
   {
-    if(data.aud !== process.env.GOOGLE_CLIENT_ID)
-    {
-      throw new Error("Invalid Google client ID (aud mismatch)");
-    }
+    throw new Error(`Google tokeninfo error: HTTP ${res.status} ${text}`);
   }
+
+  const allowedClientIds = [
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_ID_IOS
+  ].filter(Boolean);
+
+  if(allowedClientIds.length > 0 && !allowedClientIds.includes(data.aud))
+  {
+    throw new Error("Invalid Google client ID (aud mismatch)");
+  }
+
   return data;
 }
 

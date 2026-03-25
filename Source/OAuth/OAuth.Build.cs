@@ -13,14 +13,14 @@ public class OAuth : ModuleRules
 			new string[] {
 				// ... add public include paths required here ...
 			}
-			);
+		);
 				
 		
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				// ... add other private include paths required here ...
 			}
-			);
+		);
 			
 		
 		PublicDependencyModuleNames.AddRange(
@@ -29,7 +29,7 @@ public class OAuth : ModuleRules
 				"Core",
 				// ... add other public dependencies that you statically link with here ...
 			}
-			);
+		);
 			
 		
 		PrivateDependencyModuleNames.AddRange(
@@ -45,7 +45,7 @@ public class OAuth : ModuleRules
 				"JsonUtilities"
 				// ... add private dependencies that you statically link with here ...	
 			}
-			);
+		);
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
@@ -53,13 +53,28 @@ public class OAuth : ModuleRules
 			
 			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(ModuleDirectory, "SignInAndroid_UPL.xml"));
 		}
-		
+
+		if (Target.Platform == UnrealTargetPlatform.IOS)
+		{
+			PrivateDependencyModuleNames.Add("Launch");
+			
+			PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Private", "iOS"));
+			AdditionalPropertiesForReceipt.Add("IOSPlugin", Path.Combine(ModuleDirectory, "SignInIOS_UPL.xml"));
+			
+			PublicFrameworks.AddRange(new[]
+			{
+				"Foundation",
+				"UIKit",
+				"AuthenticationServices",
+				"Security"
+			});
+		}
 		
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
 				// ... add any modules that your module loads dynamically here ...
 			}
-			);
+		);
 	}
 }
