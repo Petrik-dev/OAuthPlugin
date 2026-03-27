@@ -32,10 +32,15 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UButton> SignInWithGoogle_Button;
 
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UButton> SignInWithApple_Button;
+
 private:
 
 	UFUNCTION()
 	void SignInWithGoogle();
+	UFUNCTION()
+	void SignInWithApple();
 
 	UFUNCTION()
 	void SignOut();

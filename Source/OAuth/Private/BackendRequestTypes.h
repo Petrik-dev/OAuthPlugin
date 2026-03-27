@@ -51,5 +51,6 @@ enum class EBackendRequestResources : uint8
 	SignOut,
 	ChangePlayerNickname,
 	DeleteAccount,
-	RefreshToken
+	RefreshToken,
+	AppleSignIn
 };

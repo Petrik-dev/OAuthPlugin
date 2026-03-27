@@ -22,6 +22,7 @@ static constexpr const char* JAVA_HELPER_CLASS = "com/Plugins/SignInAndroidHelpe
 
 #if PLATFORM_IOS
 #include "iOS/GoogleSignInIOSHelper.h"
+#include "iOS/AppleSignInIOSHelper.h"
 #endif
 
 
@@ -40,7 +41,7 @@ void UOABackendManager::SignInWithGoogle()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(GoogleSignInPollTimerHandle);
-		World->GetTimerManager().ClearTimer(GoogleSignInTimeotHandle);
+		World->GetTimerManager().ClearTimer(GoogleSignInTimeoutHandle);
 
 		FTimerDelegate PollDelegate;
 		PollDelegate.BindLambda([this]()
@@ -61,7 +62,7 @@ void UOABackendManager::SignInWithGoogle()
 			UE_LOG(LogTemp, Error, TEXT("Google Sign-in: Timer timed out"));
 		});
 
-		World->GetTimerManager().SetTimer(GoogleSignInTimeotHandle, TimeoutDelegate, 30.0f, false);
+		World->GetTimerManager().SetTimer(GoogleSignInTimeoutHandle, TimeoutDelegate, 30.0f, false);
 	}
 }
 
@@ -240,7 +241,7 @@ void UOABackendManager::TickGoogleSignInPolling()
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(GoogleSignInPollTimerHandle);
-		World->GetTimerManager().ClearTimer(GoogleSignInTimeotHandle);
+		World->GetTimerManager().ClearTimer(GoogleSignInTimeoutHandle);
 	}
 
 	LastGoogleSignInResultJson = ResultJson;
@@ -655,4 +656,127 @@ void UOABackendManager::RefreshToken_Response(FHttpRequestPtr Request, FHttpResp
 	
 
 	OnSignInSucceeded.Broadcast(true, TEXT("RefreshToken_Response: success"));
+}
+
+
+void UOABackendManager::SignInWithApple()
+{
+	SignInWithApple_Internal();
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AppleSignInPollTimerHandle);
+		World->GetTimerManager().ClearTimer(AppleSignInTimeoutHandle);
+
+		FTimerDelegate PollDelegate;
+		PollDelegate.BindLambda([this]()
+		{
+			if (!IsValid(this)) return;
+			TickAppleSignInPolling();
+		});
+
+		World->GetTimerManager().SetTimer(AppleSignInPollTimerHandle, PollDelegate, 0.3f, true);
+
+		FTimerDelegate TimeoutDelegate;
+		TimeoutDelegate.BindLambda([this]()
+		{
+			if (UWorld* W = GetWorld())
+			{
+				W->GetTimerManager().ClearTimer(AppleSignInPollTimerHandle);
+			}
+			UE_LOG(LogTemp, Error, TEXT("Apple Sign-in: Timer timed out"));
+		});
+
+		World->GetTimerManager().SetTimer(AppleSignInTimeoutHandle, TimeoutDelegate, 30.0f, false);
+	}
+}
+
+
+void UOABackendManager::SignInWithApple_Internal()
+{
+#if PLATFORM_IOS
+	[AppleSignInIOSHelper startSignIn];
+#endif
+}
+
+FString UOABackendManager::GetAppleSignInJson_Internal()
+{
+#if PLATFORM_IOS
+	if (!AppleSignInHasResult())
+	{
+		return FString();
+	}
+	const char* JsonUtf8 = AppleSignInConsumeLastResultJsonUTF8();
+	return UTF8_TO_TCHAR(JsonUtf8);
+#else
+	return FString();
+#endif
+	
+}
+
+void UOABackendManager::TickAppleSignInPolling()
+{
+	const FString ResultJson = GetAppleSignInJson_Internal();
+	if (ResultJson.IsEmpty()) return;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(AppleSignInPollTimerHandle);
+		World->GetTimerManager().ClearTimer(AppleSignInTimeoutHandle);
+	}
+
+	TSharedPtr<FJsonObject> AppleJson;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResultJson);
+	if (!FJsonSerializer::Deserialize(Reader, AppleJson) || !AppleJson.IsValid())
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Parse json failed"));
+		return;
+	}
+
+	bool bSuccess = false;
+	if (!AppleJson->TryGetBoolField(TEXT("success"), bSuccess))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("AppleSignIn ResultJson: %s"), *ResultJson);
+		OnSignInSucceeded.Broadcast(false, TEXT("Json doesnt have success field"));
+		return;
+	}
+
+	if (!bSuccess)
+	{
+		FString Error;
+		AppleJson->TryGetStringField(TEXT("error"), Error);
+		OnSignInSucceeded.Broadcast(false, FString::Printf(TEXT("AppleSignIn failed: %s"), *Error));
+		return;
+	}
+
+	FString IdToken;
+	if (!AppleJson->TryGetStringField(TEXT("idToken"), IdToken))
+	{
+		OnSignInSucceeded.Broadcast(false, TEXT("Json doesnt have idtoken field"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Payload = MakeShared<FJsonObject>();
+	Payload->SetStringField(TEXT("idToken"), IdToken);
+
+	FString PayloadString;
+	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&PayloadString);
+	FJsonSerializer::Serialize(Payload.ToSharedRef(), Writer);
+
+	SendAppleSignInToBackend(PayloadString);
+}
+
+void UOABackendManager::SendAppleSignInToBackend(const FString& AppleResultJson)
+{
+	check(GatewayAPIDataAsset);
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindUObject(this, &UOABackendManager::Cognito_Response);
+
+	const FString APIUrl = GatewayAPIDataAsset->GetInvokeURL(EBackendRequestResources::AppleSignIn);
+	Request->SetURL(APIUrl);
+	Request->SetVerb("POST");
+	Request->SetHeader("Content-Type", "application/json");
+
+	Request->SetContentAsString(AppleResultJson);
+	Request->ProcessRequest();
 }

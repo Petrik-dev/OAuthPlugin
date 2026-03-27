@@ -27,6 +27,8 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "OAuth")
 	void SignInWithGoogle();
+	UFUNCTION(BlueprintCallable, Category = "OAuth")
+	void SignInWithApple();
 
 	void SignOut();
 	void ChangePlayerNickname(const FString& InNickname);
@@ -51,11 +53,16 @@ private:
 	FString SerializeJsonData(const TMap<FString, FString>& Params);
 
 	void SignInWithGoogle_Internal(const FString& ServerClientId);
+	void SignInWithApple_Internal();
 	void SignOut_Internal();
 	
 	FString GetGoogleSignInJson_Internal();
 	void TickGoogleSignInPolling();
 	void SendGoogleSignInToBackend(const FString & GoogleResultJson);
+
+	FString GetAppleSignInJson_Internal();
+	void TickAppleSignInPolling();
+	void SendAppleSignInToBackend(const FString & AppleResultJson);
 
 	void Cognito_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 	void SignOut_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
@@ -64,7 +71,10 @@ private:
 	void RefreshToken_Response(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessfull);
 
 	FTimerHandle GoogleSignInPollTimerHandle;
-	FTimerHandle GoogleSignInTimeotHandle;
+	FTimerHandle GoogleSignInTimeoutHandle;
+
+	FTimerHandle AppleSignInPollTimerHandle;
+	FTimerHandle AppleSignInTimeoutHandle;
 
 	FString LastGoogleSignInResultJson;
 	

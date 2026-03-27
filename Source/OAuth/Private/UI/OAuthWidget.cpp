@@ -16,11 +16,18 @@ void UOAuthWidget::NativeConstruct()
 	Super::NativeConstruct();
 
 	check(OAuthBackendManagerClass);
-
+#if PLATFORM_ANDROID
+	SignInWithApple_Button->SetVisibility(ESlateVisibility::Collapsed);
+#endif
+	
 	OAuthBackendManager = NewObject<UOABackendManager>(this, OAuthBackendManagerClass);
 
 	SignInWithGoogle_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignInWithGoogle);
 
+#if PLATFORM_IOS
+	SignInWithApple_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignInWithApple);
+#endif
+	
 	PlayerInfoWidget->SignOut_Button->OnClicked.AddDynamic(this, &UOAuthWidget::SignOut);
 	PlayerInfoWidget->ChangePlayerNickname_Button->OnClicked.AddDynamic(this, &UOAuthWidget::ChangePlayerNickname);
 	PlayerInfoWidget->DeleteAccount_Button->OnClicked.AddDynamic(this, &UOAuthWidget::DeleteAccount);
@@ -42,6 +49,12 @@ void UOAuthWidget::NativeConstruct()
 void UOAuthWidget::SignInWithGoogle()
 {
 	OAuthBackendManager->SignInWithGoogle();
+	SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
+}
+
+void UOAuthWidget::SignInWithApple()
+{
+	OAuthBackendManager->SignInWithApple();
 	SignIn_WidgetSwitcher->SetActiveWidget(LoadingScreen_CircularThrobber);
 }
 
